@@ -8,18 +8,32 @@ import cvxpy as cp
 
 # ---- STEP 1: Load and Merge Data ----
 # Load relevant columns from hackathon_sample_v2.csv and output.csv
-hackathon_sample_v2_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/hackathon_sample_v2.csv"
-output_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/output.csv"
+hackathon_sample_v2_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/Quant-Hackathon/hackathon_sample_v2.csv"
+output_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/Quant-Hackathon/output.csv"
 
 hackathon_sample_v2 = pd.read_csv(hackathon_sample_v2_path, usecols=['permno', 'date', 'market_equity', 'be_me', 'ret_12_1', 'ivol_capm_21d', 'stock_exret'])
 output = pd.read_csv(output_path, usecols=['permno', 'date', 'en'])
 
-# Convert 'date' columns to datetime format to ensure compatibility
-hackathon_sample_v2['date'] = pd.to_datetime(hackathon_sample_v2['date'])
-output['date'] = pd.to_datetime(output['date'])
+# Convert 'date' in hackathon_sample_v2 from YYYYMMDD integer format to datetime
+hackathon_sample_v2['date'] = pd.to_datetime(hackathon_sample_v2['date'], format='%Y%m%d')
 
+# Convert 'date' in output to datetime if needed
+output['date'] = pd.to_datetime(output['date'])
 # Now merge the data on 'permno' and 'date'
 pred = pd.merge(hackathon_sample_v2, output, on=['permno', 'date'], how='inner')
+
+null_counts = pred.isnull().sum()
+print("Number of null values per column:")
+print(null_counts)
+
+# Drop rows that have any null values
+pred_cleaned = pred.dropna(axis=0)
+
+# Display the number of rows before and after dropping rows with null values
+print("\nNumber of rows before dropping rows with null values:", len(pred))
+print("Number of rows after dropping rows with null values:", len(pred_cleaned))
+
+pred = pred_cleaned
 
 # ---- STEP 2: Multi-Signal Ensemble with Random Forest ----
 # Include multiple signals (value, momentum, risk) alongside ElasticNet predictions
@@ -42,35 +56,48 @@ pred['predicted_return'] = rf_model.predict(features)
 
 # ---- STEP 3: Black-Litterman Optimization ----
 # Define market weights and equilibrium return
-# Assuming 'market_equity' is the market cap of each stock in your dataset
-pred['market_weight'] = pred['market_equity'] / pred['market_equity'].sum()
+pred_cleaned['market_weight'] = pred_cleaned['market_equity'] / pred_cleaned['market_equity'].sum()
+market_equilibrium_return = np.dot(pred_cleaned['market_weight'], pred_cleaned['stock_exret'])
+views = pred_cleaned['predicted_return']
 
-# Calculate the market equilibrium return as the weighted average of stock returns
-market_equilibrium_return = np.dot(pred['market_weight'], pred['stock_exret'])
-
-# Define views using the predicted returns from the multi-signal model
-views = pred['predicted_return']
-
-# Blend the predicted returns (views) with market equilibrium returns
-tau = 0.05  # Trust level in model predictions
+tau = 0.05
 bl_adjusted_returns = (1 - tau) * market_equilibrium_return + tau * views
 
-# Covariance matrix based on historical returns
-cov_matrix = pred[['stock_exret']].cov().values
+# Ensure bl_adjusted_returns is a NumPy array
+bl_adjusted_returns = np.array(bl_adjusted_returns)
 
-# Optimize portfolio weights using Black-Litterman
-n = len(bl_adjusted_returns)
-weights = cp.Variable(n)
-portfolio_return = bl_adjusted_returns @ weights
+# Create covariance matrix based on asset returns
+pivoted_returns = pred_cleaned.pivot(index='date', columns='permno', values='stock_exret')
+cov_matrix = pivoted_returns.cov().values
+
+# Ensure the covariance matrix is symmetric
+cov_matrix = (cov_matrix + cov_matrix.T) / 2
+
+# Debugging: Check the dimensions
+n_assets = len(bl_adjusted_returns)  # Number of assets (should match the covariance matrix size)
+print(f"Number of assets (bl_adjusted_returns): {n_assets}")
+print(f"Covariance matrix shape: {cov_matrix.shape}")
+
+if cov_matrix.shape[0] != n_assets:
+    raise Exception(f"Mismatch between the number of assets ({n_assets}) and the covariance matrix size ({cov_matrix.shape[0]})")
+
+# Optimize portfolio weights
+weights = cp.Variable(n_assets)
+
+# Ensure correct shape for bl_adjusted_returns for matrix multiplication
+portfolio_return = cp.matmul(bl_adjusted_returns, weights)
+
+# Ensure the covariance matrix and weights are compatible
 portfolio_risk = cp.quad_form(weights, cov_matrix)
-objective = cp.Maximize(portfolio_return - portfolio_risk)  # Risk aversion factor could be added
+
+# Define the objective to maximize return and minimize risk
+objective = cp.Maximize(portfolio_return - portfolio_risk)
 constraints = [cp.sum(weights) == 1]
 problem = cp.Problem(objective, constraints)
 problem.solve()
 
-# Get the optimized portfolio weights
 optimal_weights = weights.value
-pred['optimal_weight'] = optimal_weights
+pred_cleaned['optimal_weight'] = optimal_weights
 
 # ---- STEP 4: Construct the Long-Short Portfolio ----
 # Rank stocks by the optimized weights and select 50 long and 50 short positions
