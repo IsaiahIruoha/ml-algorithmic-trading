@@ -14,11 +14,10 @@ if __name__ == "__main__":
     pd.set_option("mode.chained_assignment", None)
 
     # set working directory
-    work_dir = "Your working directory"
-
+    work_dir = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon"
     # read sample data
     file_path = os.path.join(
-        work_dir, "sample_data.csv"
+        work_dir, "hackathon_sample_v2.csv"
     )  # replace with the correct file name
     raw = pd.read_csv(
         file_path, parse_dates=["date"], low_memory=False
@@ -113,44 +112,44 @@ if __name__ == "__main__":
             ["year", "month", "date", "permno", ret_var]
         ]  # minimum identifications for each stock
 
-        # Linear Regression
-        # no validation is needed for OLS
-        reg = LinearRegression(fit_intercept=False)
-        reg.fit(X_train, Y_train_dm)
-        x_pred = reg.predict(X_test) + Y_mean
-        reg_pred["ols"] = x_pred
+        # # Linear Regression
+        # # no validation is needed for OLS
+        # reg = LinearRegression(fit_intercept=False)
+        # reg.fit(X_train, Y_train_dm)
+        # x_pred = reg.predict(X_test) + Y_mean
+        # reg_pred["ols"] = x_pred
 
-        # Lasso
-        lambdas = np.arange(
-            -4, 4.1, 0.1
-        )  # search for the best lambda in the range of 10^-4 to 10^4, range can be adjusted
-        val_mse = np.zeros(len(lambdas))
-        for ind, i in enumerate(lambdas):
-            reg = Lasso(alpha=(10**i), max_iter=1000000, fit_intercept=False)
-            reg.fit(X_train, Y_train_dm)
-            val_mse[ind] = mean_squared_error(Y_val, reg.predict(X_val) + Y_mean)
+        # # Lasso
+        # lambdas = np.arange(
+        #     -4, 4.1, 0.1
+        # )  # search for the best lambda in the range of 10^-4 to 10^4, range can be adjusted
+        # val_mse = np.zeros(len(lambdas))
+        # for ind, i in enumerate(lambdas):
+        #     reg = Lasso(alpha=(10**i), max_iter=1000000, fit_intercept=False)
+        #     reg.fit(X_train, Y_train_dm)
+        #     val_mse[ind] = mean_squared_error(Y_val, reg.predict(X_val) + Y_mean)
 
-        # select the best lambda based on the validation set
-        best_lambda = lambdas[np.argmin(val_mse)]
-        reg = Lasso(alpha=(10**best_lambda), max_iter=1000000, fit_intercept=False)
-        reg.fit(X_train, Y_train_dm)
-        x_pred = reg.predict(X_test) + Y_mean  # predict the out-of-sample testing set
-        reg_pred["lasso"] = x_pred
+        # # select the best lambda based on the validation set
+        # best_lambda = lambdas[np.argmin(val_mse)]
+        # reg = Lasso(alpha=(10**best_lambda), max_iter=1000000, fit_intercept=False)
+        # reg.fit(X_train, Y_train_dm)
+        # x_pred = reg.predict(X_test) + Y_mean  # predict the out-of-sample testing set
+        # reg_pred["lasso"] = x_pred
 
-        # Ridge
-        # same format as above
-        lambdas = np.arange(-1, 8.1, 0.1)
-        val_mse = np.zeros(len(lambdas))
-        for ind, i in enumerate(lambdas):
-            reg = Ridge(alpha=((10**i) * 0.5), fit_intercept=False)
-            reg.fit(X_train, Y_train_dm)
-            val_mse[ind] = mean_squared_error(Y_val, reg.predict(X_val) + Y_mean)
+        # # Ridge
+        # # same format as above
+        # lambdas = np.arange(-1, 8.1, 0.1)
+        # val_mse = np.zeros(len(lambdas))
+        # for ind, i in enumerate(lambdas):
+        #     reg = Ridge(alpha=((10**i) * 0.5), fit_intercept=False)
+        #     reg.fit(X_train, Y_train_dm)
+        #     val_mse[ind] = mean_squared_error(Y_val, reg.predict(X_val) + Y_mean)
 
-        best_lambda = lambdas[np.argmin(val_mse)]
-        reg = Ridge(alpha=((10**best_lambda) * 0.5), fit_intercept=False)
-        reg.fit(X_train, Y_train_dm)
-        x_pred = reg.predict(X_test) + Y_mean
-        reg_pred["ridge"] = x_pred
+        # best_lambda = lambdas[np.argmin(val_mse)]
+        # reg = Ridge(alpha=((10**best_lambda) * 0.5), fit_intercept=False)
+        # reg.fit(X_train, Y_train_dm)
+        # x_pred = reg.predict(X_test) + Y_mean
+        # reg_pred["ridge"] = x_pred
 
         # Elastic Net
         # same format as above
@@ -180,7 +179,7 @@ if __name__ == "__main__":
 
     # print the OOS R2
     yreal = pred_out[ret_var].values
-    for model_name in ["ols", "lasso", "ridge", "en"]:
+    for model_name in ["en"]:
         ypred = pred_out[model_name].values
         r2 = 1 - np.sum(np.square((yreal - ypred))) / np.sum(np.square(yreal))
         print(model_name, r2)

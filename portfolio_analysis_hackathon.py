@@ -5,12 +5,12 @@ from pandas.tseries.offsets import *
 
 
 # read predcited values
-pred_path = "Your predicted values path"
+pred_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/output.csv"
 pred = pd.read_csv(pred_path, parse_dates=["date"])
 # pred.columns = map(str.lower, pred.columns)
 
 # select model (ridge as an example)
-model = "ridge"
+model = "en"
 
 # sort stocks into deciles (10 portfolios) each month based on the predicted returns and calculate portfolio returns
 # portfolio 1 is the decile with the lowest predicted returns, portfolio 10 is the decile with the highest predicted returns
@@ -39,10 +39,20 @@ sharpe = (
 )  # Sharpe ratio is annualized
 print("Sharpe Ratio:", sharpe)
 
+# 1. Calculate the Annualized Portfolio Returns for the long-short portfolio (Portfolio 11)
+annualized_return = monthly_port["port_11"].mean() * 12
+print("Annualized Return:", annualized_return)
+
+# 2. Calculate the Annualized Standard Deviation for the long-short portfolio (Portfolio 11)
+annualized_std_dev = monthly_port["port_11"].std() * np.sqrt(12)
+print("Annualized Standard Deviation:", annualized_std_dev)
+
 # Calculate the CAPM Alpha for the long-short Portfolio
 # you can use the same formula to calculate the Sharpe ratio for the long and short portfolios separately
-mkt_path = "Your market factor path"
+mkt_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/mkt_ind.csv"
 mkt = pd.read_csv(mkt_path)
+# Create 'mkt_rf' by subtracting the risk-free rate (rf) from the market return (sp_ret)
+mkt['mkt_rf'] = mkt['sp_ret'] - mkt['rf']
 monthly_port = monthly_port.merge(mkt, how="inner", on=["year", "month"])
 # Newy-West regression for heteroskedasticity and autocorrelation robust standard errors
 nw_ols = sm.ols(formula="port_11 ~ mkt_rf", data=monthly_port).fit(
@@ -79,32 +89,19 @@ print("Maximum Drawdown:", max_drawdown)
 
 # Calculate Turnover of the long portfolio and short portfolio
 def turnover_count(df):
-    # count the number of stocks at the begnning of each month
-    start_stocks = df[["permno", "date"]].copy()
-    start_stocks = start_stocks.sort_values(by=["date", "permno"])
-    start_count = start_stocks.groupby(["date"])["permno"].count().reset_index()
+    # Group by 'year' and 'month' to count the number of stocks at the beginning of each month
+    stock_counts = df.groupby(["year", "month"])["permno"].count().reset_index(name="count")
 
-    end_stocks = df[["permno", "date"]].copy()
-    end_stocks["date"] = end_stocks["date"] - MonthBegin(
-        1
-    )  # shift the date to the beginning of the next month
-    end_stocks = end_stocks.sort_values(by=["date", "permno"])
+    # Shift the stock_counts by one month to compare stock holdings between consecutive months
+    stock_counts["count_next"] = stock_counts["count"].shift(-1)
 
-    remain_stocks = start_stocks.merge(end_stocks, on=["date", "permno"], how="inner")
-    remain_count = (
-        remain_stocks.groupby(["date"])["permno"].count().reset_index()
-    )  # count the number of stocks that remain in the next month
-    remain_count = remain_count.rename(columns={"permno": "remain_count"})
+    # Calculate turnover as the absolute difference between months divided by the total stock count
+    stock_counts["turnover"] = abs(stock_counts["count"] - stock_counts["count_next"]) / stock_counts["count"]
 
-    port_count = start_count.merge(remain_count, on=["date"], how="inner")
-    port_count["turnover"] = (
-        port_count["permno"] - port_count["remain_count"]
-    ) / port_count[
-        "permno"
-    ]  # calculate the turnover as the average of the percentage of stocks that are replaced each month
-    return port_count["turnover"].mean()
+    # Return the average turnover, ignoring NaN values (for the last month with no next month)
+    return stock_counts["turnover"].mean()
 
-
+# Apply the function to the long and short portfolios
 long_positions = pred[pred["rank"] == 9]
 short_positions = pred[pred["rank"] == 0]
 print("Long Portfolio Turnover:", turnover_count(long_positions))
