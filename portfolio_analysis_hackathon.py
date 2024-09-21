@@ -5,7 +5,7 @@ from pandas.tseries.offsets import *
 
 
 # read predcited values
-pred_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/output.csv"
+pred_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/Quant-Hackathon/output.csv"
 pred = pd.read_csv(pred_path, parse_dates=["date"])
 # pred.columns = map(str.lower, pred.columns)
 
@@ -49,7 +49,7 @@ print("Annualized Standard Deviation:", annualized_std_dev)
 
 # Calculate the CAPM Alpha for the long-short Portfolio
 # you can use the same formula to calculate the Sharpe ratio for the long and short portfolios separately
-mkt_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/mkt_ind.csv"
+mkt_path = "/Users/isaiah/Desktop/Career/Clubs : Groups/Quant Hackathon/McGill-FIAM Asset Management Hackathon/Quant-Hackathon/mkt_ind.csv"
 mkt = pd.read_csv(mkt_path)
 # Create 'mkt_rf' by subtracting the risk-free rate (rf) from the market return (sp_ret)
 mkt['mkt_rf'] = mkt['sp_ret'] - mkt['rf']
