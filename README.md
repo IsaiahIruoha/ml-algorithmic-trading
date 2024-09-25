@@ -14,8 +14,6 @@ This project is a quantitative finance hackathon solution that focuses on portfo
 
 4. **Performance Metrics**: Key performance indicators such as Sharpe Ratio, Annualized Returns, and CAPM Alpha are calculated to evaluate the effectiveness of the investment strategies.
 
-5. **Visualization**: (If applicable) The project may include data visualization components to help interpret results.
-
 ## Usage
 
 (Include brief instructions on how to run the main scripts, if applicable)
