@@ -84,7 +84,7 @@ if __name__ == "__main__":
         test[stock_vars] = scaler.transform(test[stock_vars])
 
         # Perform PCA for dimensionality reduction, retain the top 30 principal components
-        pca = PCA(n_components=40) # visualized in a scree plot of the data
+        pca = PCA(n_components=35) # visualized in a scree plot of the data
         X_train_pca = pca.fit_transform(train[stock_vars])
         X_val_pca = pca.transform(validate[stock_vars])
         X_test_pca = pca.transform(test[stock_vars])
@@ -120,7 +120,7 @@ if __name__ == "__main__":
             l1_ratio=l1_ratio_values,
             alphas=alpha_values,
             cv=tscv_enet,
-            max_iter=10000,  # Max iterations for optimization
+            max_iter=1000,  # Max iterations for optimization
             fit_intercept=False,  # No intercept
             n_jobs=-1,  # Use all available processors
             tol=1e-2,  # Tolerance for stopping optimization
@@ -139,46 +139,7 @@ if __name__ == "__main__":
         x_pred_enet = enet_cv.predict(X_test_pca) + Y_mean  # Add back the mean to de-meaned predictions
         reg_pred["en"] = x_pred_enet  # Store the predictions in the output DataFrame
 #ElasticNet Ends
-        """
-
-#Random Forest Starts
-        # Random Forest Regression
-        rf = RandomForestRegressor( 
-            n_estimators=50,  # Number of trees in the forest
-            max_depth=10,  # Maximum depth of each tree
-            random_state=42,  # For reproducibility
-            n_jobs=-1)  # Use all available processors
-        rf.fit(train[stock_vars], Y_train_dm)  # Fit the model to training data
-        x_pred_rf = rf.predict(test[stock_vars]) + Y_mean  # Make predictions and add back the mean
-        reg_pred["rf"] = x_pred_rf  # Store the predictions
-#Random Forest Ends
-
-
-#Neural Network Starts
-        # Neural Network Regression
-        model = keras.Sequential([
-            keras.layers.Dense(64, activation='relu', input_shape=(X_train_pca.shape[1],)),  # First layer with 64 units
-            keras.layers.Dense(32, activation='relu'),  # Second layer with 32 units
-            keras.layers.Dense(1)  # Output layer
-        ])
-
-        model.compile(optimizer='adam', loss='mean_squared_error')  # Compile model with Adam optimizer
-
-        early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=5)  # Early stopping after 5 epochs without improvement
-
-        # Fit the model on the training data and validate on validation data
-        model.fit(
-            X_train_pca, Y_train_dm,
-            epochs=100,  # Max number of epochs
-            batch_size=32,  # Batch size for training
-            validation_data=(X_val_pca, Y_val - Y_mean),  # Validation data for monitoring loss
-            callbacks=[early_stop],  # Use early stopping
-            verbose=0  # No output during training
-        )
-#Neural Network Ends
-        """
-
-
+ 
 #XGBoost Starts
         # XGBoost Regression with hyperparameter tuning
 
